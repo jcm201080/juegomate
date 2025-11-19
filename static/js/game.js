@@ -14,6 +14,9 @@ let currentUser = null;
 // URL base del backend Flask
 const API_BASE = window.location.origin;
 
+// 🔹 Añadimos:
+let currentOperation = null;  // "+", "-", "×", "÷"
+
 
 // Referencias al DOM (juego)
 const timeSpan = document.getElementById("time");
@@ -43,14 +46,34 @@ const rankingList = document.getElementById("rankingList");
 function getConfigForLevel(level) {
     switch (level) {
         case 1:
-            return { min: 1, max: 10, operations: ["+"] };
+            return {
+                min: 1,
+                max: 10,
+                operations: ["+"]
+            };
         case 2:
-            return { min: 1, max: 20, operations: ["+", "-"] };
+            return {
+                min: 1,
+                max: 20,
+                operations: ["+", "-"]
+            };
         case 3:
+            return {
+                min: 1,
+                max: 20,
+                operations: ["+", "-", "×"]
+            };
+        case 4: // Experto
         default:
-            return { min: 1, max: 20, operations: ["+", "-", "×"] };
+            return {
+                min: 1,
+                max: 40,
+                operations: ["+", "-", "×", "÷"]  // aquí entra la división
+            };
     }
 }
+
+
 
 // ============================
 //   Juego: iniciar partida
@@ -110,50 +133,102 @@ function generateQuestion() {
 
     const config = getConfigForLevel(currentLevel);
 
-    const a = getRandomInt(config.min, config.max);
-    const b = getRandomInt(config.min, config.max);
-
-    const operations = config.operations;
-    const op = operations[getRandomInt(0, operations.length - 1)];
-
+    let a, b;
     let result;
     let text;
 
-    switch (op) {
-        case "+":
-            result = a + b;
-            text = `${a} + ${b}`;
-            break;
-        case "-":
-            result = a - b;
-            text = `${a} - ${b}`;
-            break;
-        case "×":
-            result = a * b;
-            text = `${a} × ${b}`;
-            break;
+    // Elegimos operación
+    const operations = config.operations;
+    const op = operations[getRandomInt(0, operations.length - 1)];
+    currentOperation = op;
+
+    if (currentLevel === 4 && op === "÷") {
+        // 🔹 Nivel EXPERTO: divisiones con enteros pero resultado con 1 decimal
+
+        const divisor = getRandomInt(2, 9); // 2..9
+
+        let dividend;
+        do {
+            dividend = getRandomInt(10, 99); // 10..99 para que quede curiosito
+            // Evitamos casos en los que salga un entero exacto
+        } while (dividend % divisor === 0);
+
+        result = parseFloat((dividend / divisor).toFixed(1)); // 1 decimal
+        text = `${dividend} ÷ ${divisor}`;
+    } else {
+        // 🔹 Niveles 1–3 y operaciones no divisiones en Experto
+        a = getRandomInt(config.min, config.max);
+        b = getRandomInt(config.min, config.max);
+
+        switch (op) {
+            case "+":
+                result = a + b;
+                text = `${a} + ${b}`;
+                break;
+            case "-":
+                result = a - b;
+                text = `${a} - ${b}`;
+                break;
+            case "×":
+                result = a * b;
+                text = `${a} × ${b}`;
+                break;
+            default:
+                // por si acaso cae una división fuera de experto (no debería)
+                const divisor2 = getRandomInt(2, 9);
+                const dividend2 = getRandomInt(10, 99);
+                result = parseFloat((dividend2 / divisor2).toFixed(1));
+                text = `${dividend2} ÷ ${divisor2}`;
+                currentOperation = "÷";
+                break;
+        }
     }
 
     correctAnswer = result;
     questionBox.textContent = `¿Cuánto es ${text}?`;
 
+    // Generar respuestas (1 correcta + 3 falsas)
     const answers = generateAnswers(result);
+    const isDecimal = !Number.isInteger(result);
 
     answerButtons.forEach((btn, index) => {
-        btn.textContent = answers[index];
-        btn.dataset.value = answers[index];
+        const val = answers[index];
+        const textVal = isDecimal ? val.toFixed(1) : String(val);
+        btn.textContent = textVal;
+        btn.dataset.value = textVal;
     });
 }
+
 
 // ==================================================
 function generateAnswers(correct) {
     const answers = new Set();
     answers.add(correct);
 
-    while (answers.size < 4) {
-        const offset = getRandomInt(-10, 10);
-        const candidate = correct + offset;
-        if (candidate !== correct && candidate >= -50 && candidate <= 400) {
+    const isDecimal = !Number.isInteger(correct);
+
+    if (!isDecimal) {
+        // 🔹 Modo entero
+        while (answers.size < 4) {
+            const offset = getRandomInt(-10, 10);
+            const candidate = correct + offset;
+
+            if (candidate !== correct && candidate >= -100 && candidate <= 999) {
+                answers.add(candidate);
+            }
+        }
+    } else {
+        // 🔹 Modo decimal (una cifra decimal en la correcta)
+        while (answers.size < 4) {
+            const offset = getRandomInt(-10, 10); // -1.0 a +1.0
+            if (offset === 0) continue;
+
+            let candidate = correct + offset / 10;
+            candidate = +candidate.toFixed(1);   // 1 decimal
+
+            if (candidate <= 0) continue;
+            if (candidate === correct) continue;
+
             answers.add(candidate);
         }
     }
@@ -163,6 +238,24 @@ function generateAnswers(correct) {
     return answersArray;
 }
 
+
+
+// Puntuar respuesta
+function getPointsForCurrentOperation() {
+    switch (currentOperation) {
+        case "+":
+        case "-":
+            return 3;   // sumas y restas
+        case "×":
+            return 5;   // multiplicaciones
+        case "÷":
+            return 8;   // divisiones (más puntos)
+        default:
+            return 3;
+    }
+}
+
+
 // =======================================
 function handleAnswerClick(event) {
     if (!gameActive) return;
@@ -170,8 +263,10 @@ function handleAnswerClick(event) {
     const clickedValue = Number(event.target.dataset.value);
 
     if (clickedValue === correctAnswer) {
-        score += 10;
-        messageBox.textContent = "✅ ¡Correcto!";
+    // Acierto con puntos según operación
+        const gained = getPointsForCurrentOperation();
+        score += gained;
+        messageBox.textContent = `✅ ¡Correcto! +${gained} puntos`;
         messageBox.style.color = "limegreen";
     } else {
         score -= 5;
