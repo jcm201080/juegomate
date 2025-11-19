@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Juego de Cálculo Rápido</title>
+
+    <!-- CSS externo -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="game-container">
+        <h1>Juego de Cálculo Rápido</h1>
+
+        <div class="user-panel">
+            <div id="authSection">
+                <h2>Usuario</h2>
+                <div>
+                    <input type="text" id="usernameInput" placeholder="Usuario">
+                </div>
+                <div>
+                    <input type="password" id="passwordInput" placeholder="Contraseña">
+                </div>
+                <div class="auth-buttons">
+                    <button id="loginBtn">Iniciar sesión</button>
+                    <button id="registerBtn">Registrarse</button>
+                </div>
+                <div id="authMessage" class="message"></div>
+            </div>
+
+            <div id="userInfo" style="display:none;">
+                <p>👤 Conectado como: <span id="currentUserName"></span></p>
+                <p>🏆 Mejor puntuación: <span id="currentUserBestScore">0</span></p>
+                <button id="logoutBtn">Cerrar sesión</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- aquí va el bloque que ya tenías del juego -->
+
+
+        <div class="top-info">
+            <div>⏱ Tiempo: <span id="time">60</span>s</div>
+            <div>⭐ Puntos: <span id="score">0</span></div>
+            <div>
+                🎚 Nivel:
+                <select id="levelSelect">
+                    <option value="1">Fácil</option>
+                    <option value="2">Medio</option>
+                    <option value="3">Difícil</option>
+                </select>
+            </div>
+        </div>
+
+
+        <div class="question-box" id="question">Pulsa "Empezar"</div>
+
+        <div class="answers">
+            <button class="answer" data-index="0"></button>
+            <button class="answer" data-index="1"></button>
+            <button class="answer" data-index="2"></button>
+            <button class="answer" data-index="3"></button>
+        </div>
+
+        <div class="controls">
+            <button class="btn-main" id="startBtn">Empezar partida</button>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <!-- Ranking centrado debajo -->
+    <div class="ranking-container">
+        <h2>Ranking Top 10</h2>
+        <ul id="rankingList"></ul>
+    </div>
+
+    <footer class="footer">
+        <p>© 2025 — JCM | <a href="https://github.com/jcm201080" target="_blank">GitHub</a></p>
+    </footer>
+
+
+    <!-- JS externo -->
+    <script src="{{ url_for('static', filename='js/game.js') }}" defer></script>
+</body>
+
+</html>
