@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Juego de Cálculo Rápido</title>
-
+    <link rel="icon" type="image/x-icon" href="/static/img/favicon.png" />
     <!-- CSS externo -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -33,8 +33,12 @@
             <div id="userInfo" style="display:none;">
                 <p>👤 Conectado como: <span id="currentUserName"></span></p>
                 <p>🏆 Mejor puntuación: <span id="currentUserBestScore">0</span></p>
+                <!-- 🔹 NUEVO -->
+                <p>📈 Puntuación acumulada: <span id="currentUserTotalScore">0</span></p>
+                <p>🎚 Mejor en este nivel: <span id="currentUserLevelBestScore">0</span></p>
                 <button id="logoutBtn">Cerrar sesión</button>
             </div>
+
         </div>
 
         <hr>
@@ -48,11 +52,13 @@
             <div>
                 🎚 Nivel:
                 <select id="levelSelect">
-                    <option value="1">Fácil</option>
-                    <option value="2">Medio</option>
-                    <option value="3">Difícil</option>
-                    <option value="4">Experto</option> <!-- 🔹 NUEVO -->
+                    <option value="1">Nivel 1 - Sumas</option>
+                    <option value="2">Nivel 2 - Sumas y Restas</option>
+                    <option value="3">Nivel 3 - x Tablas</option>
+                    <option value="4">Nivel 4 - Operaciones mixtas</option>
+                    <option value="5">Nivel 5 - Ecuaciones</option>
                 </select>
+
 
             </div>
         </div>
@@ -83,6 +89,12 @@
     <footer class="footer">
         <p>© 2025 — JCM | <a href="https://github.com/jcm201080" target="_blank">GitHub</a></p>
     </footer>
+
+    <!-- Sonidos del juego -->
+    <audio id="soundCorrect" src="/static/sounds/correct.wav" preload="auto"></audio>
+    <audio id="soundWrong" src="/static/sounds/wrong.wav" preload="auto"></audio>
+    <audio id="soundEnd" src="/static/sounds/end.wav" preload="auto"></audio>
+
 
 
     <!-- JS externo -->

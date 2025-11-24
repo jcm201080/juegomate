@@ -14,11 +14,12 @@ let currentUser = null;
 // URL base del backend Flask
 const API_BASE = window.location.origin;
 
-// 🔹 Añadimos:
-let currentOperation = null;  // "+", "-", "×", "÷"
+// Operación actual: "+", "-", "×", "÷", "eq"
+let currentOperation = null;
 
-
-// Referencias al DOM (juego)
+// ============================
+//   Referencias al DOM (juego)
+// ============================
 const timeSpan = document.getElementById("time");
 const scoreSpan = document.getElementById("score");
 const questionBox = document.getElementById("question");
@@ -27,7 +28,9 @@ const startBtn = document.getElementById("startBtn");
 const answerButtons = document.querySelectorAll(".answer");
 const levelSelect = document.getElementById("levelSelect");
 
-// Referencias al DOM (auth + ranking)
+// ============================
+//   Referencias al DOM (auth + ranking)
+// ============================
 const usernameInput = document.getElementById("usernameInput");
 const passwordInput = document.getElementById("passwordInput");
 const loginBtn = document.getElementById("loginBtn");
@@ -40,8 +43,29 @@ const currentUserBestScore = document.getElementById("currentUserBestScore");
 const logoutBtn = document.getElementById("logoutBtn");
 const rankingList = document.getElementById("rankingList");
 
+// 🔹 Spans extra (pueden no existir, por eso los tratamos con cuidado)
+const currentUserTotalScore = document.getElementById("currentUserTotalScore");
+const currentUserLevelBestScore = document.getElementById("currentUserLevelBestScore");
+
 // ============================
-//   Configuración por nivel
+//   Referencias a sonidos (pueden ser null si no están en el HTML)
+// ============================
+const soundCorrect = document.getElementById("soundCorrect");
+const soundWrong = document.getElementById("soundWrong");
+const soundEnd = document.getElementById("soundEnd");
+
+// Utilidad para poner texto de forma segura
+function setText(el, value) {
+    if (el) el.textContent = value;
+}
+
+// Utilidad para mostrar/ocultar secciones si existen
+function setDisplay(el, value) {
+    if (el && el.style) el.style.display = value;
+}
+
+// ============================
+//   Configuración por nivel (1–4)
 // ============================
 function getConfigForLevel(level) {
     switch (level) {
@@ -68,12 +92,35 @@ function getConfigForLevel(level) {
             return {
                 min: 1,
                 max: 40,
-                operations: ["+", "-", "×", "÷"]  // aquí entra la división
+                operations: ["+", "-", "×", "÷"]
             };
     }
 }
 
+// ============================
+//   Sonido
+// ============================
+function playSound(audioEl) {
+    if (!audioEl) return;
+    try {
+        audioEl.currentTime = 0;
+        audioEl.play().catch(() => {});
+    } catch (e) {
+        console.warn("No se pudo reproducir el sonido:", e);
+    }
+}
 
+function playCorrectSound() {
+    playSound(soundCorrect);
+}
+
+function playWrongSound() {
+    playSound(soundWrong);
+}
+
+function playEndSound() {
+    playSound(soundEnd);
+}
 
 // ============================
 //   Juego: iniciar partida
@@ -83,13 +130,13 @@ function startGame() {
     score = 0;
     gameActive = true;
     correctAnswer = null;
-    messageBox.textContent = "";
-    messageBox.style.color = "";
-    scoreSpan.textContent = score;
-    timeSpan.textContent = timeLeft;
-    questionBox.textContent = "Preparando la primera operación...";
+    setText(messageBox, "");
+    if (messageBox) messageBox.style.color = "";
+    if (scoreSpan) scoreSpan.textContent = score;
+    if (timeSpan) timeSpan.textContent = timeLeft;
+    setText(questionBox, "Preparando la primera operación...");
 
-    startBtn.textContent = "Reiniciar partida";
+    if (startBtn) startBtn.textContent = "Reiniciar partida";
 
     generateQuestion();
 
@@ -99,7 +146,7 @@ function startGame() {
 
     timerId = setInterval(() => {
         timeLeft--;
-        timeSpan.textContent = timeLeft;
+        if (timeSpan) timeSpan.textContent = timeLeft;
 
         if (timeLeft <= 0) {
             endGame();
@@ -112,12 +159,18 @@ function startGame() {
 // ============================
 function endGame() {
     gameActive = false;
-    clearInterval(timerId);
-    timerId = null;
+    if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+    }
 
-    questionBox.textContent = "⏰ Tiempo agotado";
-    messageBox.textContent = `Tu puntuación final es: ${score} puntos`;
-    messageBox.style.color = "#fff";
+    setText(questionBox, "⏰ Tiempo agotado");
+    if (messageBox) {
+        messageBox.textContent = `Tu puntuación final es: ${score} puntos`;
+        messageBox.style.color = "#fff";
+    }
+
+    playEndSound();
 
     // Si hay usuario logueado → enviar score al backend
     if (currentUser) {
@@ -126,11 +179,18 @@ function endGame() {
 }
 
 // ======================================
-//   Juego: generar operación aleatoria
+//   Juego: generar pregunta (según nivel)
 // ======================================
 function generateQuestion() {
     if (!gameActive) return;
 
+    // 🔹 Nivel 5: ecuaciones
+    if (currentLevel === 5) {
+        generateEquationQuestion();
+        return;
+    }
+
+    // 🔹 Niveles 1–4: operaciones normales
     const config = getConfigForLevel(currentLevel);
 
     let a, b;
@@ -143,20 +203,18 @@ function generateQuestion() {
     currentOperation = op;
 
     if (currentLevel === 4 && op === "÷") {
-        // 🔹 Nivel EXPERTO: divisiones con enteros pero resultado con 1 decimal
-
-        const divisor = getRandomInt(2, 9); // 2..9
+        // Nivel EXPERTO: divisiones con enteros pero resultado con 1 decimal
+        const divisor = getRandomInt(2, 9);
 
         let dividend;
         do {
-            dividend = getRandomInt(10, 99); // 10..99 para que quede curiosito
-            // Evitamos casos en los que salga un entero exacto
-        } while (dividend % divisor === 0);
+            dividend = getRandomInt(10, 99);
+        } while (dividend % divisor === 0); // evitamos enteros exactos
 
-        result = parseFloat((dividend / divisor).toFixed(1)); // 1 decimal
+        result = parseFloat((dividend / divisor).toFixed(1));
         text = `${dividend} ÷ ${divisor}`;
     } else {
-        // 🔹 Niveles 1–3 y operaciones no divisiones en Experto
+        // Niveles 1–3 y operaciones no división en nivel experto
         a = getRandomInt(config.min, config.max);
         b = getRandomInt(config.min, config.max);
 
@@ -174,7 +232,7 @@ function generateQuestion() {
                 text = `${a} × ${b}`;
                 break;
             default:
-                // por si acaso cae una división fuera de experto (no debería)
+                // Fallback por si acaso cae una división fuera de experto
                 const divisor2 = getRandomInt(2, 9);
                 const dividend2 = getRandomInt(10, 99);
                 result = parseFloat((dividend2 / divisor2).toFixed(1));
@@ -185,7 +243,7 @@ function generateQuestion() {
     }
 
     correctAnswer = result;
-    questionBox.textContent = `¿Cuánto es ${text}?`;
+    setText(questionBox, `¿Cuánto es ${text}?`);
 
     // Generar respuestas (1 correcta + 3 falsas)
     const answers = generateAnswers(result);
@@ -199,8 +257,67 @@ function generateQuestion() {
     });
 }
 
+// ======================================
+//   Nivel 5: generación de ecuaciones
+// ======================================
+function generateEquationQuestion() {
+    currentOperation = "eq"; // para la puntuación
 
-// ==================================================
+    // x estará siempre entre 1 y 20
+    let x = getRandomInt(1, 20);
+    let a, b, c, pattern, text;
+
+    // Elegimos tipo de ecuación:
+    // 1) x + b = c
+    // 2) x - b = c
+    // 3) a·x = c
+    // 4) a·x + b = c
+    pattern = getRandomInt(1, 4);
+
+    switch (pattern) {
+        case 1: // x + b = c
+            b = getRandomInt(1, 15);
+            c = x + b;
+            text = `x + ${b} = ${c}`;
+            break;
+
+        case 2: // x - b = c (nos aseguramos c >= 0)
+            b = getRandomInt(1, Math.min(x, 10));
+            c = x - b;
+            text = `x - ${b} = ${c}`;
+            break;
+
+        case 3: // a·x = c
+            a = getRandomInt(2, 9);
+            c = a * x;
+            text = `${a}x = ${c}`;
+            break;
+
+        case 4: // a·x + b = c
+        default:
+            a = getRandomInt(2, 5);
+            b = getRandomInt(1, 10);
+            c = a * x + b;
+            text = `${a}x + ${b} = ${c}`;
+            break;
+    }
+
+    correctAnswer = x;
+    setText(questionBox, `Resuelve: ${text}   (¿cuánto vale x?)`);
+
+    // Generar respuestas (enteros)
+    const answers = generateAnswers(x);
+    answerButtons.forEach((btn, index) => {
+        const val = answers[index];
+        const textVal = String(val);
+        btn.textContent = textVal;
+        btn.dataset.value = textVal;
+    });
+}
+
+// ======================================
+//   Generar respuestas alternativas
+// ======================================
 function generateAnswers(correct) {
     const answers = new Set();
     answers.add(correct);
@@ -208,7 +325,7 @@ function generateAnswers(correct) {
     const isDecimal = !Number.isInteger(correct);
 
     if (!isDecimal) {
-        // 🔹 Modo entero
+        // Modo entero
         while (answers.size < 4) {
             const offset = getRandomInt(-10, 10);
             const candidate = correct + offset;
@@ -218,13 +335,13 @@ function generateAnswers(correct) {
             }
         }
     } else {
-        // 🔹 Modo decimal (una cifra decimal en la correcta)
+        // Modo decimal (una cifra decimal en la correcta)
         while (answers.size < 4) {
             const offset = getRandomInt(-10, 10); // -1.0 a +1.0
             if (offset === 0) continue;
 
             let candidate = correct + offset / 10;
-            candidate = +candidate.toFixed(1);   // 1 decimal
+            candidate = +candidate.toFixed(1); // 1 decimal
 
             if (candidate <= 0) continue;
             if (candidate === correct) continue;
@@ -238,9 +355,9 @@ function generateAnswers(correct) {
     return answersArray;
 }
 
-
-
-// Puntuar respuesta
+// ============================
+//   Puntuación según operación
+// ============================
 function getPointsForCurrentOperation() {
     switch (currentOperation) {
         case "+":
@@ -249,33 +366,42 @@ function getPointsForCurrentOperation() {
         case "×":
             return 5;   // multiplicaciones
         case "÷":
-            return 8;   // divisiones (más puntos)
+            return 8;   // divisiones
+        case "eq":
+            return 10;  // ecuaciones, más difíciles
         default:
             return 3;
     }
 }
 
-
-// =======================================
+// ============================
+//   Click en respuesta
+// ============================
 function handleAnswerClick(event) {
     if (!gameActive) return;
 
     const clickedValue = Number(event.target.dataset.value);
 
     if (clickedValue === correctAnswer) {
-    // Acierto con puntos según operación
+        // Acierto con puntos según operación
         const gained = getPointsForCurrentOperation();
         score += gained;
-        messageBox.textContent = `✅ ¡Correcto! +${gained} puntos`;
-        messageBox.style.color = "limegreen";
+        if (messageBox) {
+            messageBox.textContent = `✅ ¡Correcto! +${gained} puntos`;
+            messageBox.style.color = "limegreen";
+        }
+        playCorrectSound();
     } else {
         score -= 5;
         if (score < 0) score = 0;
-        messageBox.textContent = `❌ Incorrecto. La respuesta correcta era ${correctAnswer}.`;
-        messageBox.style.color = "crimson";
+        if (messageBox) {
+            messageBox.textContent = `❌ Incorrecto. La respuesta correcta era ${correctAnswer}.`;
+            messageBox.style.color = "crimson";
+        }
+        playWrongSound();
     }
 
-    scoreSpan.textContent = score;
+    if (scoreSpan) scoreSpan.textContent = score;
     generateQuestion();
 }
 
@@ -298,31 +424,37 @@ function shuffleArray(array) {
 // =======================
 function setLoggedInUser(user) {
     currentUser = user;
-    authSection.style.display = "none";
-    userInfo.style.display = "block";
-    currentUserName.textContent = user.username;
-    currentUserBestScore.textContent = user.best_score ?? 0;
-    authMessage.textContent = "";
+    setDisplay(authSection, "none");
+    setDisplay(userInfo, "block");
+    setText(currentUserName, user.username);
+    setText(currentUserBestScore, user.best_score ?? 0);
+    setText(currentUserTotalScore, user.total_score ?? 0);
+    setText(currentUserLevelBestScore, "-");
+    if (authMessage) authMessage.textContent = "";
 }
 
 function setLoggedOut() {
     currentUser = null;
-    authSection.style.display = "block";
-    userInfo.style.display = "none";
-    currentUserName.textContent = "";
-    currentUserBestScore.textContent = 0;
+    setDisplay(authSection, "block");
+    setDisplay(userInfo, "none");
+    setText(currentUserName, "");
+    setText(currentUserBestScore, 0);
+    setText(currentUserTotalScore, 0);
+    setText(currentUserLevelBestScore, "-");
 }
 
 // =======================
 //   Auth: llamadas API
 // =======================
 async function registerUser() {
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
+    const username = usernameInput ? usernameInput.value.trim() : "";
+    const password = passwordInput ? passwordInput.value.trim() : "";
 
     if (!username || !password) {
-        authMessage.textContent = "Usuario y contraseña obligatorios";
-        authMessage.style.color = "orange";
+        if (authMessage) {
+            authMessage.textContent = "Usuario y contraseña obligatorios";
+            authMessage.style.color = "orange";
+        }
         return;
     }
 
@@ -336,29 +468,37 @@ async function registerUser() {
         const data = await res.json();
 
         if (!data.success) {
-            authMessage.textContent = data.error || "Error en el registro";
-            authMessage.style.color = "crimson";
+            if (authMessage) {
+                authMessage.textContent = data.error || "Error en el registro";
+                authMessage.style.color = "crimson";
+            }
             return;
         }
 
-        authMessage.textContent = "✅ Registro correcto. Sesión iniciada.";
-        authMessage.style.color = "limegreen";
+        if (authMessage) {
+            authMessage.textContent = "✅ Registro correcto. Sesión iniciada.";
+            authMessage.style.color = "limegreen";
+        }
         setLoggedInUser(data.user);
 
     } catch (err) {
         console.error(err);
-        authMessage.textContent = "Error de conexión con el servidor";
-        authMessage.style.color = "crimson";
+        if (authMessage) {
+            authMessage.textContent = "Error de conexión con el servidor";
+            authMessage.style.color = "crimson";
+        }
     }
 }
 
 async function loginUser() {
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
+    const username = usernameInput ? usernameInput.value.trim() : "";
+    const password = passwordInput ? passwordInput.value.trim() : "";
 
     if (!username || !password) {
-        authMessage.textContent = "Usuario y contraseña obligatorios";
-        authMessage.style.color = "orange";
+        if (authMessage) {
+            authMessage.textContent = "Usuario y contraseña obligatorios";
+            authMessage.style.color = "orange";
+        }
         return;
     }
 
@@ -372,22 +512,31 @@ async function loginUser() {
         const data = await res.json();
 
         if (!data.success) {
-            authMessage.textContent = data.error || "Error al iniciar sesión";
-            authMessage.style.color = "crimson";
+            if (authMessage) {
+                authMessage.textContent = data.error || "Error al iniciar sesión";
+                authMessage.style.color = "crimson";
+            }
             return;
         }
 
-        authMessage.textContent = "✅ Login correcto.";
-        authMessage.style.color = "limegreen";
+        if (authMessage) {
+            authMessage.textContent = "✅ Login correcto.";
+            authMessage.style.color = "limegreen";
+        }
         setLoggedInUser(data.user);
 
     } catch (err) {
         console.error(err);
-        authMessage.textContent = "Error de conexión con el servidor";
-        authMessage.style.color = "crimson";
+        if (authMessage) {
+            authMessage.textContent = "Error de conexión con el servidor";
+            authMessage.style.color = "crimson";
+        }
     }
 }
 
+// =======================
+//   Enviar score al servidor
+// =======================
 async function sendScoreToServer(scoreValue) {
     if (!currentUser) return;
 
@@ -395,7 +544,11 @@ async function sendScoreToServer(scoreValue) {
         const res = await fetch(`${API_BASE}/api/score`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: currentUser.id, score: scoreValue }),
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                score: scoreValue,
+                level: currentLevel
+            }),
         });
 
         const data = await res.json();
@@ -405,9 +558,18 @@ async function sendScoreToServer(scoreValue) {
             return;
         }
 
-        // Actualizar mejor score del usuario
+        // Actualizar datos del usuario
         currentUser.best_score = data.best_score;
-        currentUserBestScore.textContent = data.best_score;
+        currentUser.total_score = data.total_score;
+
+        setText(currentUserBestScore, data.best_score);
+        setText(currentUserTotalScore, data.total_score);
+
+        // Mejor puntuación en el nivel actual
+        if (data.per_level_best) {
+            const bestForLevel = data.per_level_best[currentLevel] ?? 0;
+            setText(currentUserLevelBestScore, bestForLevel);
+        }
 
         // Actualizar ranking
         if (data.ranking) {
@@ -419,7 +581,9 @@ async function sendScoreToServer(scoreValue) {
     }
 }
 
-
+// =======================
+//   Ranking
+// =======================
 async function loadRanking() {
     try {
         const res = await fetch(`${API_BASE}/api/ranking`);
@@ -433,6 +597,7 @@ async function loadRanking() {
 }
 
 function renderRanking(ranking) {
+    if (!rankingList) return;
     rankingList.innerHTML = "";
     ranking.forEach((item, index) => {
         const li = document.createElement("li");
@@ -444,29 +609,39 @@ function renderRanking(ranking) {
 // =======================
 //   Listeners iniciales
 // =======================
-startBtn.addEventListener("click", startGame);
+if (startBtn) {
+    startBtn.addEventListener("click", startGame);
+}
 
 answerButtons.forEach((btn) => {
     btn.addEventListener("click", handleAnswerClick);
 });
 
-levelSelect.addEventListener("change", (e) => {
-    currentLevel = Number(e.target.value);
-});
+if (levelSelect) {
+    levelSelect.addEventListener("change", (e) => {
+        currentLevel = Number(e.target.value);
+    });
+}
 
-loginBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    loginUser();
-});
+if (loginBtn) {
+    loginBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        loginUser();
+    });
+}
 
-registerBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    registerUser();
-});
+if (registerBtn) {
+    registerBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        registerUser();
+    });
+}
 
-logoutBtn.addEventListener("click", () => {
-    setLoggedOut();
-});
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+        setLoggedOut();
+    });
+}
 
 // Cargar ranking al inicio
 loadRanking();
