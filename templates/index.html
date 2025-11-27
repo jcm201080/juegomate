@@ -49,18 +49,22 @@
         <div class="top-info">
             <div>⏱ Tiempo: <span id="time">60</span>s</div>
             <div>⭐ Puntos: <span id="score">0</span></div>
-            <div>
-                🎚 Nivel:
+            <div class="level-wrapper">
+                <label for="levelSelect">Nivel:</label>
                 <select id="levelSelect">
-                    <option value="1">Nivel 1 - Sumas</option>
-                    <option value="2">Nivel 2 - Sumas y Restas</option>
-                    <option value="3">Nivel 3 - x Tablas</option>
-                    <option value="4">Nivel 4 - Operaciones mixtas</option>
-                    <option value="5">Nivel 5 - Ecuaciones</option>
+                    <option value="1">Nivel 1 — Sumas (1–10)</option>
+                    <option value="2">Nivel 2 — Sumas y restas (resultado ≥ 0)</option>
+                    <option value="3">Nivel 3 — Sumas y restas (1–20)</option>
+                    <option value="4">Nivel 4 — Tablas de multiplicar</option>
+                    <option value="5">Nivel 5 — Operaciones mixtas (+ − × ÷)</option>
+                    <option value="6">Nivel 6 — Ecuaciones de 1º grado</option>
+                    <option value="7">Nivel 7 — Ecuaciones de 2º grado</option>
                 </select>
 
-
+                <!-- 🔹 Aquí saldrá el texto dinámico del nivel -->
+                <span id="levelDescription" class="level-description"></span>
             </div>
+
         </div>
 
 

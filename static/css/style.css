@@ -50,12 +50,32 @@ h1 {
     font-size: 1.4rem;
 }
 
+/* Contenedor de la fila Tiempo / Puntos / Nivel */
 .top-info {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    font-size: 0.95rem;
+    flex-direction: column;   /* Cada cosa en una línea */
+    align-items: flex-start;  /* Todo alineado a la izquierda */
+    gap: 0.5rem;
+    width: 100%;
 }
+
+
+/* Contenedor del selector de nivel + descripción */
+.level-wrapper {
+    display: flex;
+    flex-direction: column;   /* 🔹 uno debajo de otro */
+    align-items: flex-start;  /* 🔹 alineado a la izquierda */
+    gap: 0.25rem;
+}
+
+/* Descripción del nivel */
+.level-description {
+    font-size: 0.9rem;
+    max-width: 220px;      /* 🔹 para que no se desborde hacia fuera */
+    line-height: 1.2;
+    color: #ffd700;        /* el amarillo que usabas */
+}
+
 
 .question-box {
     text-align: center;
@@ -163,6 +183,32 @@ button.answer.wrong {
 /* Hover bonito */
 #rankingList li:hover {
     background: rgba(255, 255, 255, 0.25);
+}
+
+
+/* Estilos para los niveles de dificultad */
+/* Contenedor de la fila Tiempo / Puntos / Nivel */
+.top-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+/* Contenedor del selector de nivel + descripción */
+.level-wrapper {
+    display: flex;
+    flex-direction: column;   /* 🔹 uno debajo de otro */
+    align-items: flex-start;  /* 🔹 alineado a la izquierda */
+    gap: 0.25rem;
+}
+
+/* Descripción del nivel */
+.level-description {
+    font-size: 0.9rem;
+    max-width: 220px;      /* 🔹 para que no se desborde hacia fuera */
+    line-height: 1.2;
+    color: #ffd700;        /* el amarillo que usabas */
 }
 
 

@@ -14,7 +14,7 @@ let currentUser = null;
 // URL base del backend Flask
 const API_BASE = window.location.origin;
 
-// Operación actual: "+", "-", "×", "÷", "eq"
+// Operación actual: "+", "-", "×", "÷", "eq", "eq2"
 let currentOperation = null;
 
 // ============================
@@ -28,6 +28,9 @@ const startBtn = document.getElementById("startBtn");
 const answerButtons = document.querySelectorAll(".answer");
 const levelSelect = document.getElementById("levelSelect");
 
+const levelDescription = document.getElementById("levelDescription");
+
+
 // ============================
 //   Referencias al DOM (auth + ranking)
 // ============================
@@ -40,7 +43,6 @@ const authSection = document.getElementById("authSection");
 const userInfo = document.getElementById("userInfo");
 const currentUserName = document.getElementById("currentUserName");
 const currentUserBestScore = document.getElementById("currentUserBestScore");
-const logoutBtn = document.getElementById("logoutBtn");
 const rankingList = document.getElementById("rankingList");
 
 // 🔹 Spans extra (pueden no existir, por eso los tratamos con cuidado)
@@ -65,29 +67,37 @@ function setDisplay(el, value) {
 }
 
 // ============================
-//   Configuración por nivel (1–4)
+//   Configuración por nivel
+//   (1 a 5 usan operaciones normales)
+//   6 y 7 son ecuaciones (gestionadas aparte)
 // ============================
 function getConfigForLevel(level) {
     switch (level) {
-        case 1:
+        case 1: // Original: sumas 1–10
             return {
                 min: 1,
                 max: 10,
                 operations: ["+"]
             };
-        case 2:
+        case 2: // NUEVO: sumas y restas, pero restas siempre con resultado >= 0
+            return {
+                min: 1,
+                max: 10,
+                operations: ["+", "-"]
+            };
+        case 3: // Antiguo nivel 2: sumas y restas 1–20
             return {
                 min: 1,
                 max: 20,
                 operations: ["+", "-"]
             };
-        case 3:
+        case 4: // Antiguo nivel 3: sumas, restas y multiplicaciones
             return {
                 min: 1,
                 max: 20,
                 operations: ["+", "-", "×"]
             };
-        case 4: // Experto
+        case 5: // Antiguo nivel 4: experto operaciones mixtas
         default:
             return {
                 min: 1,
@@ -95,6 +105,39 @@ function getConfigForLevel(level) {
                 operations: ["+", "-", "×", "÷"]
             };
     }
+}
+
+// ============================
+//   Descripción textual por nivel (incluye tiempo)
+// ============================
+function getDescriptionForLevel(level) {
+    const seconds = getTimeForLevel(level);  // usamos la misma lógica de tiempos
+
+    switch (level) {
+        case 1:
+            return `Modo fácil: solo sumas con números pequeños. (${seconds}s)`;
+        case 2:
+            return `Sumas y restas, pero nunca salen resultados negativos. 🧸 (${seconds}s)`;
+        case 3:
+            return `Sumas y restas hasta 20. Ya hay que pensar un poco más. 💪 (${seconds}s)`;
+        case 4:
+            return `Tablas de multiplicar: velocidad y memoria a prueba. ✖️ (${seconds}s)`;
+        case 5:
+            return `Operaciones mixtas (+ − × ÷). Modo calculadora humana. 🤖 (${seconds}s)`;
+        case 6:
+            return `Ecuaciones de 1º grado: encuentra el valor de x. 🧠 (${seconds}s)`;
+        case 7:
+            return `Ecuaciones de 2º grado: nivel matemático legendario. 🏆 (${seconds}s)`;
+        default:
+            return "Elige un nivel para empezar la partida.";
+    }
+}
+
+
+function updateLevelDescription() {
+    if (!levelDescription) return;
+    const desc = getDescriptionForLevel(currentLevel);
+    levelDescription.textContent = desc;
 }
 
 // ============================
@@ -122,18 +165,33 @@ function playEndSound() {
     playSound(soundEnd);
 }
 
+
+// tiemopo por nivel
+function getTimeForLevel(level) {
+    if (level <= 4) return 60;
+    if (level === 5) return 90;
+    if (level === 6) return 120;
+    if (level === 7) return 200;
+    return 60; // fallback
+}
+
+
 // ============================
 //   Juego: iniciar partida
 // ============================
 function startGame() {
-    timeLeft = 60;
+    // Tiempo según el nivel actual
+    timeLeft = getTimeForLevel(currentLevel);
+
     score = 0;
     gameActive = true;
     correctAnswer = null;
+
     setText(messageBox, "");
     if (messageBox) messageBox.style.color = "";
     if (scoreSpan) scoreSpan.textContent = score;
     if (timeSpan) timeSpan.textContent = timeLeft;
+
     setText(questionBox, "Preparando la primera operación...");
 
     if (startBtn) startBtn.textContent = "Reiniciar partida";
@@ -153,6 +211,7 @@ function startGame() {
         }
     }, 1000);
 }
+
 
 // ============================
 //   Juego: finalizar partida
@@ -184,13 +243,19 @@ function endGame() {
 function generateQuestion() {
     if (!gameActive) return;
 
-    // 🔹 Nivel 5: ecuaciones
-    if (currentLevel === 5) {
+    // 🔹 Nivel 6: ecuaciones de primer grado (antiguo nivel 5)
+    if (currentLevel === 6) {
         generateEquationQuestion();
         return;
     }
 
-    // 🔹 Niveles 1–4: operaciones normales
+    // 🔹 Nivel 7: ecuaciones de segundo grado (nuevo)
+    if (currentLevel === 7) {
+        generateQuadraticQuestion();
+        return;
+    }
+
+    // 🔹 Niveles 1–5: operaciones normales
     const config = getConfigForLevel(currentLevel);
 
     let a, b;
@@ -202,8 +267,8 @@ function generateQuestion() {
     const op = operations[getRandomInt(0, operations.length - 1)];
     currentOperation = op;
 
-    if (currentLevel === 4 && op === "÷") {
-        // Nivel EXPERTO: divisiones con enteros pero resultado con 1 decimal
+    if (currentLevel === 5 && op === "÷") {
+        // Nivel EXPERTO (5): divisiones con enteros pero resultado con 1 decimal
         const divisor = getRandomInt(2, 9);
 
         let dividend;
@@ -214,9 +279,16 @@ function generateQuestion() {
         result = parseFloat((dividend / divisor).toFixed(1));
         text = `${dividend} ÷ ${divisor}`;
     } else {
-        // Niveles 1–3 y operaciones no división en nivel experto
-        a = getRandomInt(config.min, config.max);
-        b = getRandomInt(config.min, config.max);
+        // Niveles 1–4 y operaciones no división en nivel experto
+
+        if (op === "-" && currentLevel === 2) {
+            // ➕➖ Nivel 2: restas pero resultado >= 0
+            a = getRandomInt(config.min, config.max);
+            b = getRandomInt(config.min, a); // b <= a, así a - b nunca es negativo
+        } else {
+            a = getRandomInt(config.min, config.max);
+            b = getRandomInt(config.min, config.max);
+        }
 
         switch (op) {
             case "+":
@@ -258,7 +330,8 @@ function generateQuestion() {
 }
 
 // ======================================
-//   Nivel 5: generación de ecuaciones
+//   Nivel 6: generación de ecuaciones (1er grado)
+//   (antiguo nivel 5, lo mantenemos igual)
 // ======================================
 function generateEquationQuestion() {
     currentOperation = "eq"; // para la puntuación
@@ -307,6 +380,37 @@ function generateEquationQuestion() {
 
     // Generar respuestas (enteros)
     const answers = generateAnswers(x);
+    answerButtons.forEach((btn, index) => {
+        const val = answers[index];
+        const textVal = String(val);
+        btn.textContent = textVal;
+        btn.dataset.value = textVal;
+    });
+}
+
+// ======================================
+//   Nivel 7: ecuaciones de segundo grado
+// ======================================
+function generateQuadraticQuestion() {
+    currentOperation = "eq2"; // para la puntuación de nivel avanzado
+
+    // Raíz entera positiva (para no liarla con negativos)
+    const r = getRandomInt(1, 10);
+
+    // Ecuación: (x - r)^2 = 0 -> x^2 - 2rx + r^2 = 0
+    const b = -2 * r;
+    const c = r * r;
+
+    const bStr = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`;
+    const cStr = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
+
+    const text = `x² ${bStr}x ${cStr} = 0`;
+
+    correctAnswer = r;
+    setText(questionBox, `Resuelve: ${text}   (¿cuánto vale x?)`);
+
+    // Generar respuestas (enteros)
+    const answers = generateAnswers(r);
     answerButtons.forEach((btn, index) => {
         const val = answers[index];
         const textVal = String(val);
@@ -368,7 +472,9 @@ function getPointsForCurrentOperation() {
         case "÷":
             return 8;   // divisiones
         case "eq":
-            return 10;  // ecuaciones, más difíciles
+            return 10;  // ecuaciones 1er grado
+        case "eq2":
+            return 15;  // ecuaciones 2º grado, más difíciles
         default:
             return 3;
     }
@@ -618,10 +724,23 @@ answerButtons.forEach((btn) => {
 });
 
 if (levelSelect) {
+    // Al cargar, sincronizamos currentLevel con el select
+    currentLevel = Number(levelSelect.value) || 1;
+    updateLevelDescription();
+
     levelSelect.addEventListener("change", (e) => {
-        currentLevel = Number(e.target.value);
-    });
+    currentLevel = Number(e.target.value);
+
+    // 🔹 Actualizar descripción
+    updateLevelDescription();
+
+    // 🔹 Mostrar el tiempo correspondiente al nivel
+    const t = getTimeForLevel(currentLevel);
+    if (timeSpan) timeSpan.textContent = t;
+});
+
 }
+
 
 if (loginBtn) {
     loginBtn.addEventListener("click", (e) => {
